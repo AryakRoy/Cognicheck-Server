@@ -1,14 +1,16 @@
 from flask import Flask, request,jsonify
 import os
 import json
+from predictor import Predictor 
 
 app = Flask(__name__)
+Pred = Predictor()
 
 @app.route("/predictor",methods=['POST'])
 def save_image():
   mriData =request.form["mri"]
-  print(mriData)
-  return jsonify({'status' : 'Success'})
+  result = Pred.analyze(mriData)
+  return jsonify({'result' : f'{result}'})
 
 if __name__ == "__main__":
   app.run(Debug=True)
