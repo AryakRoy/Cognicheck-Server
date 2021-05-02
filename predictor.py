@@ -1,18 +1,7 @@
-import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, Input, ZeroPadding2D, BatchNormalization, Activation, MaxPooling2D, Flatten, Dense
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
-from sklearn.utils import shuffle
 import cv2
 import imageio
 import imutils
 import numpy as np
-import matplotlib.pyplot as plt
-import time
-import requests
-from os import listdir
 from keras.models import model_from_json
 import ssl
 
@@ -36,22 +25,7 @@ class Predictor:
         extTop = tuple(c[c[:, :, 1].argmin()][0])
         extBot = tuple(c[c[:, :, 1].argmax()][0])
         # crop new image out of the original image using the four extreme points (left, right, top, bottom)
-        new_image = image[extTop[1]:extBot[1], extLeft[0]:extRight[0]]           
-        if plot:
-            plt.figure()
-            plt.subplot(1, 2, 1)
-            plt.imshow(image)
-            plt.tick_params(axis='both', which='both', 
-                            top=False, bottom=False, left=False, right=False,
-                            labelbottom=False, labeltop=False, labelleft=False, labelright=False)
-            plt.title('Original Image')
-            plt.subplot(1, 2, 2)
-            plt.imshow(new_image)
-            plt.tick_params(axis='both', which='both', 
-                            top=False, bottom=False, left=False, right=False,
-                            labelbottom=False, labeltop=False, labelleft=False, labelright=False)
-            plt.title('Cropped Image')
-            plt.show()
+        new_image = image[extTop[1]:extBot[1], extLeft[0]:extRight[0]]
         return new_image
 
     def load_data(self,image_url,image_size = (240,240)):
