@@ -13,4 +13,4 @@ def save_image():
   return jsonify({'result' : f'{result}'})
 
 if __name__ == "__main__":
-  app.run(Debug=True)
+  app.run(debug=True)
