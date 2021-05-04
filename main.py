@@ -1,5 +1,4 @@
 from flask import Flask, request,jsonify
-from predictor import Predictor_Model
 from flask_restful import Resource, Api, reqparse
 from flask_cors import CORS
 import cv2
@@ -14,6 +13,16 @@ api = Api(app)
 CORS(app)
 
 class Predictor_Model:
+    def __init__(self):
+        json_file = open('best_model.json', 'r')
+        model = json_file.read()
+        json_file.close()
+        loaded_model = model_from_json(model)
+        loaded_model.load_weights("best_model.h5")
+        print("Loaded model from disk")
+        loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+        self.model = loaded_model
+
     def crop_brain_contour(self,image, plot=False):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -49,24 +58,18 @@ class Predictor_Model:
     
     def analyze(self,image_url):
         X = self.load_data(image_url)
-        json_file = open('best_model.json', 'r')
-        model = json_file.read()
-        json_file.close()
-        loaded_model = model_from_json(model)
-        loaded_model.load_weights("best_model.h5")
-        print("Loaded model from disk")
-        loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
-        y_pred = loaded_model.predict(X)
+        y_pred = self.model.predict(X)
         result = np.where(y_pred>0.7,"Positive","Negative")[0][0]
         print(result)
         return result
-        
+
+pred_model = Predictor_Model()
+
 class Analyzer(Resource):
   def __init__(self):
     parser = reqparse.RequestParser()
     parser.add_argument("mri",type=str,help="MRI URL is required", required=True)
     self.req_parser = parser
-    self.pred_model = Predictor_Model()
 
   def get(self):
     return jsonify({'result' : 'Hello'})
@@ -74,7 +77,7 @@ class Analyzer(Resource):
   def post(self):
     args = self.req_parser.parse_args()
     mriData = args["mri"]
-    result = self.pred_model.analyze(mriData)
+    result = pred_model.analyze(mriData)
     return jsonify({'result' : f'{result}'})
 
 api.add_resource(Analyzer,"/")  
