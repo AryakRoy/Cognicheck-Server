@@ -6,6 +6,7 @@ import imageio
 import imutils
 import numpy as np
 from keras.models import model_from_json
+from keras.optimizers import Adam
 import ssl
 
 app = Flask(__name__)
@@ -19,7 +20,7 @@ class Predictor_Model:
         json_file.close()
         loaded_model = model_from_json(model)
         loaded_model.load_weights("best_model.h5")
-        print("Loaded model from disk")
+        print("Prediction Loaded model from disk")
         loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
         self.model = loaded_model
 
@@ -60,10 +61,54 @@ class Predictor_Model:
         X = self.load_data(image_url)
         y_pred = self.model.predict(X)
         result = np.where(y_pred>0.7,"Positive","Negative")[0][0]
-        print(result)
+        print(f"Prediction {result}")
+        return result
+
+class Classification_Model:
+    def __init__(self):
+        json_file = open('classification.json', 'r')
+        model = json_file.read()
+        json_file.close()
+        loaded_model = model_from_json(model)
+        loaded_model.load_weights("classification.h5")
+        print("Classification Loaded model from disk")
+        optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999)
+        loaded_model.compile(optimizer = optimizer , loss = "categorical_crossentropy", metrics=["accuracy"])
+        self.model = loaded_model
+        self.IMG_SIZE = 150
+    
+    def load_data(self,image_url):
+        training_data = []
+        img_array = imageio.imread(image_url)
+        img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
+        new_array = cv2.resize(img_array,(self.IMG_SIZE,self.IMG_SIZE)) 
+        training_data.append([new_array])
+        X = []
+        for features in training_data:
+            X.append(features)
+        X = np.array(X).reshape(-1,self.IMG_SIZE,self.IMG_SIZE)
+        X = X/255.0  
+        X = X.reshape(-1,150,150,1)
+        return X
+    
+    def analyze(self,image_url):
+        X = self.load_data(image_url)
+        y_pred = self.model.predict(X)
+        if y_pred[0][0] > 0.65:
+            result = "Glioma"
+        elif y_pred[0][1] > 0.65:
+            result = "Meningioma"
+        elif y_pred[0][2] > 0.65:
+            result = "No Tumor"
+        elif y_pred[0][3] > 0.65:
+            result = "Pituitary"
+        else:
+            result = "Invalid"
+        print(f"Classification : {result}")
         return result
 
 pred_model = Predictor_Model()
+class_model = Classification_Model()
 
 class Analyzer(Resource):
   def __init__(self):
@@ -77,8 +122,13 @@ class Analyzer(Resource):
   def post(self):
     args = self.req_parser.parse_args()
     mriData = args["mri"]
-    result = pred_model.analyze(mriData)
-    return jsonify({'result' : f'{result}'})
+    pred_result = pred_model.analyze(mriData)
+    if pred_result == "Positive":
+        class_result = class_model.analyze(mriData)
+    else:
+        class_result = "None"
+    
+    return jsonify({'pred_result' : f'{pred_result}', 'class_result' : f'{class_result}'})
 
 api.add_resource(Analyzer,"/")  
 
